@@ -150,6 +150,7 @@ pipeline {
             export KUBECONFIG=$KUBE_CONFIG_PATH
             echo "Verifying Kubernetes connectivity..."
             kubectl get nodes
+	    kubectl get pods --all-namespaces
             '''
         }
     }
