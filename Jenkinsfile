@@ -185,7 +185,6 @@ pipeline {
 	stage("Prompt for Terraform Destroy") {
 	    steps {
 	        script {
-	            // Capture user input
 	            def userInput = input(
 	                id: 'ConfirmDestroy',
 	                message: 'Do you want to destroy the infrastructure?',
@@ -195,10 +194,12 @@ pipeline {
 	            )
 	            if (userInput == 'Yes') {
 	                echo "User confirmed to proceed with destroy."
-	                env.PROCEED_DESTROY = "true" // Set environment variable to indicate destruction
+	                env.PROCEED_DESTROY = "true"
 	            } else {
 	                echo "User chose not to destroy. Skipping Terraform Destroy stage."
-	                env.PROCEED_DESTROY = "false" // Set environment variable to skip destruction
+	                env.PROCEED_DESTROY = "false"
+	                currentBuild.result = 'SUCCESS' // Explicitly mark the build as successful
+	                return // Gracefully exit the stage
 	            }
 	        }
 	    }
@@ -206,7 +207,7 @@ pipeline {
 	
 	stage("Terraform Destroy") {
 	    when {
-	        expression { return env.PROCEED_DESTROY == "true" } // Conditional execution
+	        expression { return env.PROCEED_DESTROY == "true" }
 	    }
 	    steps {
 	        echo "Running Terraform Destroy..."
@@ -220,7 +221,6 @@ pipeline {
 	        '''
 	    }
 	}
-
         
     }
 
