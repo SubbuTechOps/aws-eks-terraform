@@ -182,40 +182,46 @@ pipeline {
                 '''
             }
         }
+	stage("Prompt for Terraform Destroy") {
+	    steps {
+	        script {
+	            // Capture user input
+	            def userInput = input(
+	                id: 'ConfirmDestroy',
+	                message: 'Do you want to destroy the infrastructure?',
+	                parameters: [
+	                    choice(name: 'PROCEED', choices: ['Yes', 'No'], description: 'Select Yes to destroy or No to skip.')
+	                ]
+	            )
+	            if (userInput == 'Yes') {
+	                echo "User confirmed to proceed with destroy."
+	                env.PROCEED_DESTROY = "true" // Set environment variable to indicate destruction
+	            } else {
+	                echo "User chose not to destroy. Skipping Terraform Destroy stage."
+	                env.PROCEED_DESTROY = "false" // Set environment variable to skip destruction
+	            }
+	        }
+	    }
+	}
+	
+	stage("Terraform Destroy") {
+	    when {
+	        expression { return env.PROCEED_DESTROY == "true" } // Conditional execution
+	    }
+	    steps {
+	        echo "Running Terraform Destroy..."
+	        sh '''
+	        # Load AWS credentials
+	        . ${WORKSPACE}/vault_env.sh
+	
+	        # Run Terraform destroy
+	        cd aws-eks-terraform
+	        ../terraform destroy -auto-approve
+	        '''
+	    }
+	}
+
         
-        stage("Prompt for Terraform Destroy") {
-            steps {
-                script {
-                    def userInput = input(
-                        id: 'ConfirmDestroy', message: 'Do you want to destroy the infrastructure?', parameters: [
-                            choice(name: 'PROCEED', choices: ['Yes', 'No'], description: 'Select Yes to destroy or No to skip.')
-                        ]
-                    )
-                    if (userInput == 'Yes') {
-                        echo "User confirmed to proceed with destroy."
-                    } else {
-                        echo "User chose not to destroy. Skipping Terraform Destroy stage."
-                        currentBuild.result = 'SUCCESS' // Mark the build as successful
-                        error("Skipping Terraform Destroy as per user input.")
-                    }
-                }
-            }
-        }
-        
-        stage("Terraform Destroy") {
-            steps {
-                echo "Running Terraform Destroy..."
-                sh '''
-                # Load AWS credentials
-                . ${WORKSPACE}/vault_env.sh
-        
-                # Run Terraform destroy
-                cd aws-eks-terraform
-                ../terraform destroy -auto-approve
-                '''
-            }
-        }
-       
     }
 
     post {
