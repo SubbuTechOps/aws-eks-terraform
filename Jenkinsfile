@@ -14,18 +14,6 @@ pipeline {
 	                string(credentialsId: 'vault-role-id', variable: 'VAULT_ROLE_ID'),
 	                string(credentialsId: 'vault-secret-id', variable: 'VAULT_SECRET_ID')
 	            ]) {
-	                echo "Checking if Vault CLI is installed..."
-	
-	                // Check for Vault CLI Installation
-	                sh '''
-	                if ! command -v vault &> /dev/null; then
-	                    echo "Vault CLI is not installed. Exiting..."
-	                    exit 1
-	                else
-	                    echo "Vault CLI is installed."
-	                fi
-	                '''
-	
 	                echo "Fetching GitHub and AWS credentials from Vault..."
 	
 	                // Fetch secrets with error handling
@@ -64,9 +52,7 @@ pipeline {
 	        }
 	    }
 	}
-
-		
-        
+	       
         stage("Checkout Source Code") {
             steps {
                 script {
@@ -130,58 +116,45 @@ pipeline {
                 '''
             }
         }
-        
-        stage("Install kubectl and Update Kubeconfig") {
-            steps {
-                echo "Installing kubectl and dynamically updating Kubeconfig..."
-                sh '''
-                # Check if kubectl is already installed
-                if ! kubectl version --client &> /dev/null; then
-                    echo "Installing kubectl..."
-                    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                    chmod +x kubectl
-                    mkdir -p /var/lib/jenkins/bin
-                    mv kubectl /var/lib/jenkins/bin/
-                    export PATH=/var/lib/jenkins/bin:$PATH
-                else
-                    echo "kubectl is already installed."
-                fi
-        
-                # Verify kubectl installation
-                kubectl version --client
-        
-                # Load AWS credentials
-                echo "Loading AWS credentials..."
-                . ${WORKSPACE}/vault_env.sh
-                
-                if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-                    echo "AWS credentials are not available."
-                    exit 1
-                fi
-                
-                export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-        
-                # Dynamically retrieve the EKS cluster name
-                echo "Retrieving EKS cluster name..."
-                CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query 'clusters[0]' --output text)
-                if [ -z "$CLUSTER_NAME" ]; then
-                    echo "No EKS cluster found in the region."
-                    exit 1
-                fi
-                echo "EKS Cluster Name: $CLUSTER_NAME"
-        
-                # Update Kubeconfig
-                echo "Updating Kubeconfig for EKS cluster..."
-                aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
-        
-                # Verify Kubernetes Connectivity
-                echo "Verifying Kubernetes Connectivity..."
-                kubectl get nodes
-                kubectl get pods --all-namespaces
-                '''
-            }
+    stage("Update Kubeconfig and Verify") {
+        steps {
+            echo "Updating kubeconfig using AWS credentials from Vault..."
+            sh '''
+            # Step 1: Load AWS credentials
+            echo "Loading AWS credentials..."
+            . ${WORKSPACE}/vault_env.sh
+    
+            # Step 2: Verify AWS credentials
+            aws sts get-caller-identity || { echo "Invalid AWS credentials"; exit 1; }
+    
+            # Step 3: Retrieve EKS cluster name
+            echo "Retrieving EKS cluster name..."
+            CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query 'clusters[0]' --output text)
+            if [ -z "$CLUSTER_NAME" ]; then
+                echo "No EKS cluster found. Exiting..."
+                exit 1
+            fi
+            echo "EKS Cluster Name: $CLUSTER_NAME"
+    
+            # Step 4: Update Kubeconfig in Jenkins home directory
+            echo "Updating kubeconfig..."
+            KUBE_CONFIG_PATH="/var/lib/jenkins/.kube/config"
+            mkdir -p /var/lib/jenkins/.kube
+            aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1 --kubeconfig $KUBE_CONFIG_PATH
+    
+            # Step 5: Set permissions for Jenkins user
+            chown jenkins:jenkins $KUBE_CONFIG_PATH
+            chmod 600 $KUBE_CONFIG_PATH
+    
+            # Step 6: Verify Kubernetes connectivity
+            export KUBECONFIG=$KUBE_CONFIG_PATH
+            echo "Verifying Kubernetes connectivity..."
+            kubectl get nodes
+            '''
         }
+    }
+
+    
 	stage("Prompt for Terraform Destroy") {
 	    steps {
 	        script {
