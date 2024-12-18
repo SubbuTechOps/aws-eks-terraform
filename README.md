@@ -1,7 +1,10 @@
 # Project Overview:
 Effectively and securely managing infrastructure is essential for modern DevOps workflows. This guide will create an End-to-End Infrastructure-as-Code (IaC) pipeline to provision an AWS EKS cluster using Terraform. We will automate the pipeline with Jenkins and securely manage sensitive credentials using HashiCorp Vault.
+
 ### Please refer to the link below for complete information:
+
 **@SubbuTechOps:** https://subbutechops.com/end-to-end-aws-eks-provisioning-with-terraform-jenkins-ci-cd-and-hashicorp-vault/
+
 **@Medium:** https://medium.com/@subbareddysangham/end-to-end-aws-eks-provisioning-with-terraform-jenkins-ci-cd-and-hashicorp-vault-6caf11cb2d2c
 
 # High-Level Architecture:
