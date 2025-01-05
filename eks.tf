@@ -27,28 +27,28 @@ module "eks" {
         role = "general"
       }
 
-      instance_types = ["t3.small"]
+      instance_types = ["t3.large"]
       capacity_type  = "ON_DEMAND"
     }
 
-    spot = {
-      desired_size = 2
-      min_size     = 2
-      max_size     = 10
+   # spot = {
+   #  desired_size = 2
+   #   min_size     = 2
+   #  max_size     = 10
 
-      labels = {
-        role = "spot"
-      }
+   #   labels = {
+   #    role = "spot"
+   #  }
 
-      taints = [{
-        key    = "market"
-        value  = "spot"
-        effect = "NO_SCHEDULE"
-      }]
+   #   taints = [{
+   #    key    = "market"
+   #     value  = "spot"
+   #    effect = "NO_SCHEDULE"
+   #   }]
 
-      instance_types = ["t3.micro"]
-      capacity_type  = "SPOT"
-    }
+   #  instance_types = ["t3.micro"]
+   #   capacity_type  = "SPOT"
+   # }
   }
 
   manage_aws_auth_configmap = true
